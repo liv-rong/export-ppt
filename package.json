@@ -1,0 +1,30 @@
+{
+  "name": "export-ppt",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/liv-rong/export-ppt.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/liv-rong/export-ppt/issues"
+  },
+  "homepage": "https://github.com/liv-rong/export-ppt#readme",
+  "description": "",
+  "devDependencies": {
+    "@types/node": "^24.7.2",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@microsoft/fetch-event-source": "^2.0.1",
+    "pptxgenjs": "^4.0.1",
+    "uuid": "^13.0.0"
+  }
+}
