@@ -137,7 +137,7 @@ function calculateTopLeftAndSize(obj: ComponentsType) {
   }
 }
 
-export const exportPpt = async (canvasList: DrawingType[]) => {
+export const exportPptFile = async (canvasList: DrawingType[]) => {
   const pptx = new pptxgen()
   for (const item of canvasList) {
     const { objects } = item
@@ -290,4 +290,5 @@ export const exportPpt = async (canvasList: DrawingType[]) => {
     fileName: 'index.pptx',
     compression: true
   })
+  return pptx
 }

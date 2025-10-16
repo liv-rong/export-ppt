@@ -9,13 +9,18 @@ async function aiFetch<T = any>(
   options: RequestInit = {}
 ): Promise<{ success: boolean; data?: T; message?: string; status?: number }> {
   try {
+    const isGet = (options.method || 'GET').toUpperCase() === 'GET'
+    const defaultHeaders: HeadersInit = {
+      'x-api-key': 'helix',
+      ...(isGet ? {} : { 'Content-Type': 'application/json' })
+    }
+
     const response = await fetch(`${url}`, {
+      ...options,
       headers: {
-        'x-api-key': `helix`,
-        'Content-Type': 'application/json',
-        ...options.headers
-      },
-      ...options
+        ...defaultHeaders,
+        ...(options.headers || {})
+      }
     })
 
     const contentType = response.headers.get('content-type')
@@ -62,7 +67,9 @@ export async function getAiPptText<T = any>(
   return aiFetch<T>(`${AI_NET_URL}/completion-messages`, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${API_KEY}`
+      Authorization: `Bearer ${API_KEY}`,
+      'Content-Type': 'application/json',
+      Accept: 'application/json'
     },
     body: JSON.stringify({
       response_mode: 'blocking',

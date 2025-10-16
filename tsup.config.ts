@@ -5,8 +5,9 @@ export default defineConfig({
   format: ['esm', 'cjs'],
   dts: true,
   clean: true,
-  sourcemap: true,
-  splitting: false,
-  external: ['pptxgenjs'],
-  target: 'node14'
+  sourcemap: false,
+  platform: 'browser',
+  target: 'esnext',
+  treeshake: true,
+  noExternal: ['pptxgenjs', 'uuid']
 })
