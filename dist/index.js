@@ -8284,6 +8284,74 @@ var findSuitableTemplate = (itemsLength, templateData) => {
   return null;
 };
 
+// src/utils/text.ts
+var calculateTextHeightAccurate = ({
+  text,
+  fontSize = 24,
+  lineHeight = 1.2,
+  maxWidth = 668
+}) => {
+  if (!text) return fontSize * lineHeight;
+  const charWidthMap = {
+    chinese: 1,
+    english: 0.8,
+    // 进一步增加英文宽度，减少换行
+    space: 0.4,
+    // 进一步增加空格宽度
+    punctuation: 0.7,
+    // 进一步增加标点符号宽度
+    number: 0.8
+    // 进一步增加数字宽度
+  };
+  const getCharType = (char) => {
+    if (/[\u4e00-\u9fa5]/.test(char)) return "chinese";
+    if (/[a-zA-Z]/.test(char)) return "english";
+    if (/[0-9]/.test(char)) return "number";
+    if (/\s/.test(char)) return "space";
+    if (/[，。！？；：""''（）【】《》]/.test(char)) return "punctuation";
+    if (/[,.!?;:"'()\[\]<>]/.test(char)) return "punctuation";
+    return "english";
+  };
+  let currentLineWidth = 0;
+  let lineCount = 1;
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const charType = getCharType(char);
+    const charWidth = fontSize * charWidthMap[charType];
+    if (currentLineWidth + charWidth > maxWidth) {
+      lineCount++;
+      currentLineWidth = charWidth;
+    } else {
+      currentLineWidth += charWidth;
+    }
+  }
+  const baseHeight = lineCount * fontSize * lineHeight;
+  let compensation = 0;
+  if (lineCount === 1) {
+    compensation = 8;
+  } else if (lineCount === 2) {
+    compensation = 12;
+  } else {
+    compensation = 18;
+  }
+  if (text.length > 30) {
+    compensation += 3;
+  }
+  if (text.length > 50) {
+    compensation += 3;
+  }
+  if (fontSize >= 24) {
+    compensation += 3;
+  }
+  if (fontSize >= 32) {
+    compensation += 3;
+  }
+  const lineHeightCompensation = Math.max(0, (lineHeight - 1) * fontSize * 0.6);
+  compensation += lineHeightCompensation;
+  compensation += fontSize * 0.2;
+  return Math.round(baseHeight + compensation);
+};
+
 // src/utils/tempate.ts
 var replacePptJsonText = (template, aiText) => {
   try {
@@ -8310,7 +8378,31 @@ var replacePptJsonText = (template, aiText) => {
       }
     });
     const res = handlePptData(aiTextJson, templateMap);
-    return res;
+    console.log(res, "res");
+    const res1 = res.map((item) => {
+      const { objects = [], ...rest } = item;
+      const newObjects = objects.map((obj) => {
+        if (obj?.type === "textbox") {
+          const textObj = obj;
+          const height = calculateTextHeightAccurate({
+            text: textObj?.text ?? "",
+            fontSize: textObj?.fontSize ?? 24,
+            lineHeight: textObj?.lineHeight ?? 1.2,
+            maxWidth: textObj?.width ?? 668
+          });
+          return {
+            ...obj,
+            height
+          };
+        }
+        return obj;
+      });
+      return {
+        ...rest,
+        objects: newObjects
+      };
+    });
+    return res1;
   } catch (error) {
     return [];
   }

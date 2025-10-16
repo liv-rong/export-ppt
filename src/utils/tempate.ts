@@ -1,5 +1,12 @@
-import { PptSliceEnum, type DrawingType, type PptSlice } from '../types'
+import {
+  PptSliceEnum,
+  type ComponentsType,
+  type DrawingType,
+  type PptSlice,
+  TextType
+} from '../types'
 import { handlePptData } from './replatePpt'
+import { calculateTextHeightAccurate } from './text'
 
 //将模版JSON 中的文本数据替换 替换成真正的文本数据
 export const replacePptJsonText = (template: string, aiText: string) => {
@@ -28,7 +35,31 @@ export const replacePptJsonText = (template: string, aiText: string) => {
     })
 
     const res = handlePptData(aiTextJson, templateMap)
-    return res
+    console.log(res, 'res')
+    const res1 = res.map((item: DrawingType) => {
+      const { objects = [], ...rest } = item
+      const newObjects = objects.map((obj: ComponentsType) => {
+        if (obj?.type === 'textbox') {
+          const textObj = obj as TextType
+          const height = calculateTextHeightAccurate({
+            text: textObj?.text ?? '',
+            fontSize: textObj?.fontSize ?? 24,
+            lineHeight: textObj?.lineHeight ?? 1.2,
+            maxWidth: textObj?.width ?? 668
+          })
+          return {
+            ...obj,
+            height
+          }
+        }
+        return obj
+      })
+      return {
+        ...rest,
+        objects: newObjects
+      }
+    })
+    return res1
   } catch (error: any) {
     return []
   }
