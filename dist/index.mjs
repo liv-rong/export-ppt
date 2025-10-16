@@ -37,7 +37,7 @@ var require_jszip_min = __commonJS({
       if ("object" == typeof exports && "undefined" != typeof module) module.exports = e();
       else if ("function" == typeof define && define.amd) define([], e);
       else {
-        ("undefined" != typeof window ? window : "undefined" != typeof global ? global : "undefined" != typeof self ? self : this).JSZip = e();
+        ("undefined" != typeof window ? window : "undefined" != typeof globalThis ? globalThis : "undefined" != typeof self ? self : this).JSZip = e();
       }
     })(function() {
       return (function s(a, o, h) {
@@ -1093,7 +1093,7 @@ var require_jszip_min = __commonJS({
           l.exports = function(e3) {
             1 !== h.push(e3) || n || r();
           };
-        }).call(this, "undefined" != typeof global ? global : "undefined" != typeof self ? self : "undefined" != typeof window ? window : {});
+        }).call(this, "undefined" != typeof globalThis ? globalThis : "undefined" != typeof self ? self : "undefined" != typeof window ? window : {});
       }, {}], 37: [function(e, t, r) {
         var i = e("immediate");
         function u() {
@@ -2336,7 +2336,7 @@ var require_jszip_min = __commonJS({
               e4.source === r2 && "string" == typeof e4.data && 0 === e4.data.indexOf(a) && c(+e4.data.slice(a.length));
             }
           })("undefined" == typeof self ? void 0 === e2 ? this : e2 : self);
-        }).call(this, "undefined" != typeof global ? global : "undefined" != typeof self ? self : "undefined" != typeof window ? window : {});
+        }).call(this, "undefined" != typeof globalThis ? globalThis : "undefined" != typeof self ? self : "undefined" != typeof window ? window : {});
       }, {}] }, {}, [10])(10);
     });
   }
