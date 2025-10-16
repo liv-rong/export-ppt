@@ -2,11 +2,17 @@ import type { PptSlice } from '../types'
 import { PptSliceEnum } from '../types'
 
 function trimMd(str: string): string {
-  return (str || '')
+  let s = (str || '')
+    .replace(/\uFEFF/g, '') // 去除 BOM
     .replace(/\r/g, '')
     .replace(/\\n/g, '\n') // 将 \n 转义字符转换为真正的换行符
     .replace(/\s*chunks\s*$/i, '') // 去掉尾部流式标记
     .trim()
+  // 去除整段包裹的成对引号（'...' 或 "...")
+  if ((s.startsWith("'") && s.endsWith("'")) || (s.startsWith('"') && s.endsWith('"'))) {
+    s = s.slice(1, -1).trim()
+  }
+  return s
 }
 
 function extractBulletList(lines: string[]): string[] {
@@ -98,21 +104,45 @@ export function parsePptMarkdown(md: string): PptSlice[] {
     return items
   }
 
-  for (const raw of sections) {
+  // 定位：首个单 # 为封面，最后一个单 # 为结束
+  const headers = sections.map((sec) => {
+    const first = trimMd(sec).split('\n')[0] || ''
+    return first
+  })
+  const singleHashIndexes = headers.map((h, i) => (/^#\s+/.test(h) ? i : -1)).filter((i) => i >= 0)
+  const coverIndex = singleHashIndexes.length > 0 ? singleHashIndexes[0] : -1
+  let endIndex = singleHashIndexes.length > 1 ? singleHashIndexes[singleHashIndexes.length - 1] : -1
+  // 如果没有找到“最后一个单 #”作为结束，则回退到最后一个“# 或 ## 谢谢观看”作为结束
+  if (endIndex === -1) {
+    for (let i = headers.length - 1; i >= 0; i--) {
+      if (/^#{1,2}\s*谢谢观看/.test(headers[i])) {
+        endIndex = i
+        break
+      }
+    }
+  }
+
+  for (let idx = 0; idx < sections.length; idx++) {
+    const raw = sections[idx]
     const s = trimMd(raw)
     if (!s) continue
     const ls = s.split('\n')
     const header = ls[0] || ''
 
-    // 封面页：以 # 开头且不是"谢谢观看"
-    if (/^#\s+/.test(header) && !/谢谢观看/.test(header)) {
+    // 位置优先：首个单 # 为封面
+    if (idx === coverIndex) {
       const title = header.replace(/^#\s+/, '').trim()
-      // 描述：取紧随其后的 "- 文本"
+      // 描述：取紧随其后的首个非空且非标题行；若以 "- " 开头则去掉前缀
       let text = ''
       if (ls.length > 1) {
-        const next = ls[1]?.trim() || ''
-        if (/^-\s+/.test(next)) {
-          text = next.replace(/^-\s+/, '').trim()
+        // 找到标题后的第一个非空且非标题行
+        const nextLine =
+          ls
+            .slice(1)
+            .map((l) => (l || '').trim())
+            .find((l) => l.length > 0 && !/^#/.test(l)) || ''
+        if (nextLine) {
+          text = (/^-\s+/.test(nextLine) ? nextLine.replace(/^-\s+/, '') : nextLine).trim()
         }
       }
       slices.push({
@@ -122,10 +152,10 @@ export function parsePptMarkdown(md: string): PptSlice[] {
       continue
     }
 
-    // 结束页：# 谢谢观看 或 ## 谢谢观看（必须在目录页之前检查）
-    if (/^#+\s*谢谢观看/.test(header)) {
-      const title = '谢谢观看'
-      // 描述：取紧随其后的文本
+    // 位置优先：最后一个单 # 为结束
+    if (idx === endIndex && endIndex !== coverIndex) {
+      const title = header.replace(/^#\s+/, '').trim() || '谢谢观看'
+      // 描述：取紧随其后的文本（非标题行）
       let text = ''
       if (ls.length > 1) {
         const next = ls[1]?.trim() || ''
@@ -140,6 +170,7 @@ export function parsePptMarkdown(md: string): PptSlice[] {
       continue
     }
 
+    // 以下为非首/末单 # 的常规解析
     // 目录页：## 目录页
     if (/^##\s*目录页/.test(header)) {
       const items = extractBulletList(ls)
@@ -150,12 +181,16 @@ export function parsePptMarkdown(md: string): PptSlice[] {
     // 章节过渡页：### 标题
     if (/^###\s+/.test(header)) {
       const title = header.replace(/^###\s+/, '').trim()
-      // 描述：取紧随其后的 "- 文本"
+      // 描述：取紧随其后的首个非空且非标题行；若以 "- " 开头则去掉前缀
       let text = ''
       if (ls.length > 1) {
-        const next = ls[1]?.trim() || ''
-        if (/^-\s+/.test(next)) {
-          text = next.replace(/^-\s+/, '').trim()
+        const nextLine =
+          ls
+            .slice(1)
+            .map((l) => (l || '').trim())
+            .find((l) => l.length > 0 && !/^#/.test(l)) || ''
+        if (nextLine) {
+          text = (/^-\s+/.test(nextLine) ? nextLine.replace(/^-\s+/, '') : nextLine).trim()
         }
       }
       slices.push({
