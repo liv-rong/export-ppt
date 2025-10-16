@@ -1,6 +1,6 @@
 {
   "name": "export-ppt",
-  "version": "1.0.6pn",
+  "version": "1.0.6",
   "description": "Export PPTX from template and AI generated text in browser/node.",
   "main": "dist/index.cjs",
   "module": "dist/index.mjs",
