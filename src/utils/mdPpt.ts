@@ -131,7 +131,10 @@ export function parsePptMarkdown(md: string): PptSlice[] {
 
     // 位置优先：首个单 # 为封面
     if (idx === coverIndex) {
-      const title = header.replace(/^#\s+/, '').trim()
+      const title = header
+        .replace(/^#\s+/, '')
+        .replace(/[，,]\s*$/, '')
+        .trim()
       // 描述：取紧随其后的首个非空且非标题行；若以 "- " 开头则去掉前缀
       let text = ''
       if (ls.length > 1) {
@@ -154,7 +157,11 @@ export function parsePptMarkdown(md: string): PptSlice[] {
 
     // 位置优先：最后一个单 # 为结束
     if (idx === endIndex && endIndex !== coverIndex) {
-      const title = header.replace(/^#\s+/, '').trim() || '谢谢观看'
+      const title =
+        header
+          .replace(/^#{1,2}\s+/, '')
+          .replace(/[，,]\s*$/, '')
+          .trim() || '谢谢观看'
       // 描述：取紧随其后的文本（非标题行）
       let text = ''
       if (ls.length > 1) {
