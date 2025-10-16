@@ -1,8 +1,10 @@
 import type { PptSlice } from '../types'
+import { PptSliceEnum } from '../types'
 
 function trimMd(str: string): string {
   return (str || '')
     .replace(/\r/g, '')
+    .replace(/\\n/g, '\n') // 将 \n 转义字符转换为真正的换行符
     .replace(/\s*chunks\s*$/i, '') // 去掉尾部流式标记
     .trim()
 }
@@ -53,33 +55,27 @@ export function parsePptMarkdown(md: string): PptSlice[] {
   const content = trimMd(md)
   if (!content) return []
 
-  // 支持两种输入：1) 以 --- 分隔的页面；2) 连续的块，靠标题识别
-  const hasSeparators = /\n---\n/.test(content)
   const lines = content.split('\n')
-
-  const sections: string[] = []
-  if (hasSeparators) {
-    sections.push(...content.split(/\n---\n/g))
-  } else {
-    // 按标题层级切分：# / ## / ### / ####
-    let current: string[] = []
-    for (const line of lines) {
-      if (
-        /^#\s+/.test(line) ||
-        /^##\s+/.test(line) ||
-        /^###\s+/.test(line) ||
-        /^####\s+/.test(line)
-      ) {
-        if (current.length) sections.push(current.join('\n'))
-        current = [line]
-      } else {
-        current.push(line)
-      }
-    }
-    if (current.length) sections.push(current.join('\n'))
-  }
-
   const slices: PptSlice[] = []
+
+  // 按标题层级切分：# / ## / ### / ####
+  const sections: string[] = []
+  let current: string[] = []
+
+  for (const line of lines) {
+    if (
+      /^#\s+/.test(line) ||
+      /^##\s+/.test(line) ||
+      /^###\s+/.test(line) ||
+      /^####\s+/.test(line)
+    ) {
+      if (current.length) sections.push(current.join('\n'))
+      current = [line]
+    } else {
+      current.push(line)
+    }
+  }
+  if (current.length) sections.push(current.join('\n'))
 
   // 提取 bullet 对（- 标题 /   - 说明）
   const extractBulletPairs = (ls: string[]): { title: string; text?: string }[] => {
@@ -106,72 +102,80 @@ export function parsePptMarkdown(md: string): PptSlice[] {
     const s = trimMd(raw)
     if (!s) continue
     const ls = s.split('\n')
-    const header =
-      ls.find(
-        (l) => /^#\s+/.test(l) || /^##\s+/.test(l) || /^###\s+/.test(l) || /^####\s+/.test(l)
-      ) || ''
+    const header = ls[0] || ''
 
     // 封面页：以 # 开头且不是"谢谢观看"
     if (/^#\s+/.test(header) && !/谢谢观看/.test(header)) {
       const title = header.replace(/^#\s+/, '').trim()
-      // 描述：优先取紧随其后的 "- 文本"，否则取下一行非标题文本
+      // 描述：取紧随其后的 "- 文本"
       let text = ''
-      const idx = ls.findIndex((l) => /^#\s+/.test(l))
-      if (idx >= 0) {
-        const next = ls[idx + 1]?.trim() || ''
-        if (/^-\s+/.test(next)) text = next.replace(/^-\s+/, '').trim()
-        else if (next && !/^#/.test(next)) text = next
+      if (ls.length > 1) {
+        const next = ls[1]?.trim() || ''
+        if (/^-\s+/.test(next)) {
+          text = next.replace(/^-\s+/, '').trim()
+        }
       }
-      slices.push({ type: 'cover', data: { title, ...(text ? { text } : {}) } } as PptSlice)
+      slices.push({
+        type: PptSliceEnum.Cover,
+        data: { title, ...(text ? { text } : {}) }
+      } as PptSlice)
       continue
     }
 
-    // 目录页
+    // 结束页：# 谢谢观看 或 ## 谢谢观看（必须在目录页之前检查）
+    if (/^#+\s*谢谢观看/.test(header)) {
+      const title = '谢谢观看'
+      // 描述：取紧随其后的文本
+      let text = ''
+      if (ls.length > 1) {
+        const next = ls[1]?.trim() || ''
+        if (next && !/^#/.test(next)) {
+          text = next
+        }
+      }
+      slices.push({
+        type: PptSliceEnum.End,
+        data: { title, ...(text ? { text } : {}) }
+      } as PptSlice)
+      continue
+    }
+
+    // 目录页：## 目录页
     if (/^##\s*目录页/.test(header)) {
       const items = extractBulletList(ls)
-      slices.push({ type: 'contents', data: { items } } as PptSlice)
+      slices.push({ type: PptSliceEnum.Contents, data: { items } } as PptSlice)
       continue
     }
 
     // 章节过渡页：### 标题
     if (/^###\s+/.test(header)) {
       const title = header.replace(/^###\s+/, '').trim()
+      // 描述：取紧随其后的 "- 文本"
       let text = ''
-      const idx = ls.findIndex((l) => /^###\s+/.test(l))
-      if (idx >= 0) {
-        const next = ls[idx + 1]?.trim() || ''
-        if (/^-\s+/.test(next)) text = next.replace(/^-\s+/, '').trim()
-        else if (next && !/^#/.test(next)) text = next
+      if (ls.length > 1) {
+        const next = ls[1]?.trim() || ''
+        if (/^-\s+/.test(next)) {
+          text = next.replace(/^-\s+/, '').trim()
+        }
       }
-      slices.push({ type: 'transition', data: { title, ...(text ? { text } : {}) } } as PptSlice)
+      slices.push({
+        type: PptSliceEnum.Transition,
+        data: { title, ...(text ? { text } : {}) }
+      } as PptSlice)
       continue
     }
 
     // 内容页：#### 标题
     if (/^####\s+/.test(header)) {
       const title = header.replace(/^####\s+/, '').trim()
-      const body = ls.slice(ls.findIndex((l) => /^####\s+/.test(l)) + 1)
-      // 优先 bullet 对，否则退回编号/加粗解析
-      const pairs = extractBulletPairs(body)
-      const items = (pairs.length ? pairs : extractNumberedItems(body)).slice(0, 4)
-      slices.push({ type: 'content', data: { title, items } } as PptSlice)
-      continue
-    }
-
-    // 结束页：# 谢谢观看 或 ## 谢谢观看
-    if (/^#+\s*谢谢观看/.test(header)) {
-      const title = '谢谢观看'
-      let text = ''
-      const idx = ls.findIndex((l) => /^#+\s*谢谢观看/.test(l))
-      if (idx >= 0) {
-        const next = ls[idx + 1]?.trim() || ''
-        if (next && !/^#/.test(next)) text = next
-      }
-      slices.push({ type: 'end', data: { title, ...(text ? { text } : {}) } } as PptSlice)
+      const body = ls.slice(1) // 跳过标题行
+      const items = extractBulletPairs(body).slice(0, 4) // 最多4个要点
+      slices.push({ type: PptSliceEnum.Content, data: { title, items } } as PptSlice)
       continue
     }
   }
 
+  console.log('parsed slices:', slices)
   return slices
 }
 

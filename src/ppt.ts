@@ -1,7 +1,12 @@
-import { getPptJson, replacePptJsonText, exportPptFile } from './utils'
+import { replacePptJsonText, exportPptFile } from './utils'
+import { parsePptMarkdown } from './utils/mdPpt'
 
 export const exportPpt = async (template: string, aiText: string) => {
-  const resJson = replacePptJsonText(template, aiText)
+  const pptSlices = parsePptMarkdown(aiText)
+
+  const aiTextJson = JSON.stringify(pptSlices)
+
+  const resJson = replacePptJsonText(template, aiTextJson)
 
   const resPpt = await exportPptFile(resJson)
 
